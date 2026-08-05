@@ -86,21 +86,21 @@
                     const expandedParts = [];
 
                     rawParts.forEach(part => {
-                        // Match book prefix and subsequent page list
-                        const match = part.match(/^([A-Za-z0-9\s]+?)\s+(\d+.*)$/);
+                        // Find the index of the first digit to cleanly separate book prefix from pages
+                        const firstDigitIdx = part.search(/\d/);
                         
-                        if (match) {
-                            const bookPrefix = match[1].trim();
-                            const pageList = match[2];
+                        if (firstDigitIdx > 0) {
+                            const bookPrefix = part.substring(0, firstDigitIdx).trim();
+                            const pageList = part.substring(firstDigitIdx);
                             
-                            // Split the page section by commas
+                            // Split the page section by commas (e.g., "31, 52, 103")
                             const pages = pageList.split(',').map(p => p.trim()).filter(Boolean);
                             
-                            // Recombine the book prefix with each individual page number
                             pages.forEach((page, index) => {
                                 if (index === 0) {
                                     expandedParts.push(`${bookPrefix} ${page}`);
                                 } else {
+                                    // If subsequent chunk starts with a digit, pair it with the prefix
                                     if (/^\d/.test(page)) {
                                         expandedParts.push(`${bookPrefix} ${page}`);
                                     } else {
