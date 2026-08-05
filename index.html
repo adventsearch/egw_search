@@ -49,14 +49,17 @@
                 <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg shadow hover:border-slate-600 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <span class="font-semibold text-indigo-400 whitespace-nowrap" x-text="item.bible"></span>
                     
-                    <!-- Individual Citation Badges -->
-                    <div class="flex flex-wrap gap-1.5 justify-end">
-                        <template x-for="cit in getFilteredCitations(item)">
-                            <span class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono"
-                                  :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': isHighlighted(cit)}"
-                                  x-text="cit"></span>
-                        </template>
-                    </div>
+                   <!-- Individual Citation Badges as Links -->
+<div class="flex flex-wrap gap-1.5 justify-end">
+    <template x-for="cit in getFilteredCitations(item)">
+        <a :href="`https://www.google.com/search?q=${encodeURIComponent('egwwritings.org ' + cit)}`" 
+           target="_blank" 
+           rel="noopener noreferrer"
+           class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono hover:bg-indigo-600 hover:text-white transition"
+           :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': isHighlighted(cit)}"
+           x-text="cit"></a>
+    </template>
+</div>
                 </div>
             </template>
             
