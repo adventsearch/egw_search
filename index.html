@@ -49,7 +49,7 @@
                 <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg shadow hover:border-slate-600 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <span class="font-semibold text-indigo-400 whitespace-nowrap" x-text="item.bible"></span>
                     
-                   <!-- Individual Citation Badges as Links -->
+                  <!-- Individual Citation Badges as Links -->
 <div class="flex flex-wrap gap-1.5 justify-end">
     <template x-for="cit in getFilteredCitations(item)">
         <a :href="`https://www.google.com/search?q=${encodeURIComponent('egwwritings.org ' + cit)}`" 
@@ -90,10 +90,44 @@
                     }
                 },
 
-                getCitationParts(item) {
-                    if (!item.citation) return [];
-                    return item.citation.split(';').map(c => c.trim()).filter(Boolean);
-                },
+               getCitationParts(item) {
+    if (!item.citation) return [];
+    // First split by semicolon
+    const rawParts = item.citation.split(';').map(c => c.trim()).filter(Boolean);
+    const expandedParts = [];
+
+    rawParts.forEach(part => {
+        // Match a book prefix (letters/numbers like "DA" or "3SM" or "1BC") followed by numbers/pages
+        const match = part.match(/^([A-Za-z0-9\s]+?)\s+(\d+.*)$/);
+        
+        if (match) {
+            const bookPrefix = match.trim();
+            const pageList = match;
+            
+            // Split the page section by commas (e.g., "31, 52, 103")
+            const pages = pageList.split(',').map(p => p.trim()).filter(Boolean);
+            
+            // Recombine the prefix with each individual page number
+            pages.forEach((page, index) => {
+                if (index === 0) {
+                    expandedParts.push(`${bookPrefix} ${page}`);
+                } else {
+                    // Handle cases where subsequent items might be sub-ranges or just numbers
+                    // If it's just a number, pair it with the original book prefix
+                    if (/^\d/.test(page)) {
+                        expandedParts.push(`${bookPrefix} ${page}`);
+                    } else {
+                        expandedParts.push(`${bookPrefix}, ${page}`);
+                    }
+                }
+            });
+        } else {
+            expandedParts.push(part);
+        }
+    });
+
+    return expandedParts;
+},
 
                 getFilteredCitations(item) {
                     const parts = this.getCitationParts(item);
