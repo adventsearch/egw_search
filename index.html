@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EGW Scripture Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6">
+
+    <div class="max-w-4xl mx-auto px-4 py-12" 
+         x-data="scriptureSearch()" 
+         x-init="loadData()">
+        
+        <h1 class="text-3xl font-bold mb-6 text-center">EGW Scripture Index</h1>
+
+        <!-- Search Inputs Container -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <!-- Scripture Search -->
+            <div class="md:col-span-2">
+                <input type="text" 
+                       x-model.debounce.300ms="searchQuery" 
+                       placeholder="Search scripture (e.g., Gen 3 or Genesis 3:1)..." 
+                       class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-100 placeholder-slate-400 shadow-sm">
+            </div>
+            <!-- EGW Citation Filter -->
+            <div class="md:col-span-1">
+                <input type="text" 
+                       x-model.debounce.200ms="egwFilter" 
+                       placeholder="Filter EGW (e.g., GC, AA)..." 
+                       class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-100 placeholder-slate-400 shadow-sm">
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading" class="text-center py-8 text-slate-400">
+            Loading scripture database...
+        </div>
+
+        <!-- Results Info -->
+        <div x-show="!loading" class="mb-4 text-sm text-slate-400 flex justify-between items-center">
+            <span x-text="`Showing ${filteredResults.length} of ${records.length} entries`"></span>
+        </div>
+
+        <!-- Results List -->
+        <div class="space-y-3" x-show="!loading">
+            <template x-for="item in filteredResults" :key="item.id">
+                <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg shadow hover:border-slate-600 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <span class="font-semibold text-indigo-400 whitespace-nowrap" x-text="item.bible"></span>
+                    
+                    <!-- Individual Citation Badges -->
+                    <div class="flex flex-wrap gap-1.5 justify-end">
+                        <template x-for="cit in getFilteredCitations(item)">
+                            <span class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono"
+                                  :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': isHighlighted(cit)}"
+                                  x-text="cit"></span>
+                        </template>
+                    </div>
+                </div>
+            </template>
+            
+            <!-- Empty State -->
+            <div x-show="filteredResults.length === 0 && !loading" class="text-center py-12 text-slate-500 bg-slate-800/50 rounded-lg border border-slate-800">
+                No matching scripture references found.
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function scriptureSearch() {
+            return {
+                records: [],
+                searchQuery: '',
+                egwFilter: '',
+                loading: true,
+
+                async loadData() {
+                    try {
+                        const response = await fetch('egw_scrip_processed.json');
+                        this.records = await response.json();
+                    } catch (error) {
+                        console.error('Failed to load JSON data:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                getCitationParts(item) {
+                    if (!item.citation) return [];
+                    return item.citation.split(';').map(c => c.trim()).filter(Boolean);
+                },
+
+                getFilteredCitations(item) {
+                    const parts = this.getCitationParts(item);
+                    const filterVal = this.egwFilter.trim().toUpperCase();
+                    
+                    if (!filterVal) return parts;
+
+                    // Return only the citation parts that match the active filter
+                    return parts.filter(p => p.toUpperCase().includes(filterVal));
+                },
+
+                isHighlighted(cit) {
+                    const filterVal = this.egwFilter.trim().toUpperCase();
+                    if (!filterVal) return false;
+                    return cit.toUpperCase().includes(filterVal);
+                },
+
+                get filteredResults() {
+                    let results = this.records;
+
+                    // 1. Filter by Bible reference or shorthand
+                    if (this.searchQuery.trim()) {
+                        const query = this.searchQuery.trim().toLowerCase();
+                        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const queryRegex = new RegExp(escapedQuery, 'i');
+                        results = results.filter(item => queryRegex.test(item.search_text));
+                    } else {
+                        results = results.slice(0, 50);
+                    }
+
+                    // 2. Drill down by specific EGW book abbreviation
+                    if (this.egwFilter.trim()) {
+                        const filterVal = this.egwFilter.trim().toUpperCase();
+                        results = results.filter(item => {
+                            const parts = this.getCitationParts(item);
+                            return parts.some(p => p.toUpperCase().includes(filterVal));
+                        });
+                    }
+
+                    return results;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
