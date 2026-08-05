@@ -3,171 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EGW Scripture Search</title>
+    <title>EGW Scripture Index</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js CDN -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-6">
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+    <div class="max-w-4xl mx-auto p-4 md:p-8" x-data="scriptureApp()">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold tracking-tight mb-2">EGW Scripture Index</h1>
+            <p class="text-slate-400 text-sm">Search and verify citation references instantly.</p>
+        </header>
 
-    <div class="max-w-4xl mx-auto px-4 py-12" 
-         x-data="scriptureSearch()" 
-         x-init="loadData()">
-        
-        <h1 class="text-3xl font-bold mb-6 text-center">EGW Scripture Index</h1>
-
-        <!-- Search Inputs Container -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <!-- Scripture Search -->
-            <div class="md:col-span-2">
+        <!-- Search & Filter Controls -->
+        <div class="mb-6 flex flex-col md:flex-row gap-4">
+            <div class="flex-1">
                 <input type="text" 
-                       x-model.debounce.300ms="searchQuery" 
-                       placeholder="Search scripture (e.g., Gen 3 or Genesis 3:1)..." 
-                       class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-100 placeholder-slate-400 shadow-sm">
-            </div>
-            <!-- EGW Citation Filter -->
-            <div class="md:col-span-1">
-                <input type="text" 
-                       x-model.debounce.200ms="egwFilter" 
-                       placeholder="Filter EGW (e.g., GC, AA)..." 
-                       class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-100 placeholder-slate-400 shadow-sm">
+                       x-model="searchQuery" 
+                       placeholder="Search by scripture, text, or citation..." 
+                       class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-100 focus:outline-none focus:border-indigo-500 placeholder-slate-500">
             </div>
         </div>
 
         <!-- Loading State -->
-        <div x-show="loading" class="text-center py-8 text-slate-400">
-            Loading scripture database...
-        </div>
-
-        <!-- Results Info -->
-        <div x-show="!loading" class="mb-4 text-sm text-slate-400 flex justify-between items-center">
-            <span x-text="`Showing ${filteredResults.length} of ${records.length} entries`"></span>
+        <div x-show="loading" class="text-center py-12 text-slate-400">
+            Loading index data...
         </div>
 
         <!-- Results List -->
-        <div class="space-y-3" x-show="!loading">
-            <template x-for="item in filteredResults" :key="item.id">
-                <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg shadow hover:border-slate-600 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <span class="font-semibold text-indigo-400 whitespace-nowrap" x-text="item.bible"></span>
+        <div class="space-y-4" x-show="!loading">
+            <template x-for="item in filteredItems" :key="item.scripture + item.citation">
+                <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div class="flex-1">
+                        <span class="text-indigo-400 font-semibold text-lg" x-text="item.scripture"></span>
+                        <p class="text-slate-300 text-sm mt-1" x-text="item.text"></p>
+                    </div>
                     
-                  <!-- Individual Citation Badges as Links -->
-<div class="flex flex-wrap gap-1.5 justify-end">
-    <template x-for="cit in getFilteredCitations(item)">
-        <a :href="`https://www.google.com/search?q=${encodeURIComponent('egwwritings.org ' + cit)}`" 
-           target="_blank" 
-           rel="noopener noreferrer"
-           class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono hover:bg-indigo-600 hover:text-white transition"
-           :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': isHighlighted(cit)}"
-           x-text="cit"></a>
-    </template>
-</div>
+                    <!-- Individual Citation Badges as Links -->
+                    <div class="flex flex-wrap gap-1.5 justify-end">
+                        <template x-for="cit in getFilteredCitations(item)">
+                            <a :href="`https://www.google.com/search?q=${encodeURIComponent('egwwritings.org ' + cit)}`" 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono hover:bg-indigo-600 hover:text-white transition"
+                               :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': isHighlighted(cit)}"
+                               x-text="cit"></a>
+                        </template>
+                    </div>
                 </div>
             </template>
             
-            <!-- Empty State -->
-            <div x-show="filteredResults.length === 0 && !loading" class="text-center py-12 text-slate-500 bg-slate-800/50 rounded-lg border border-slate-800">
-                No matching scripture references found.
+            <div x-show="filteredItems.length === 0" class="text-center py-12 text-slate-500">
+                No matching results found.
             </div>
         </div>
-
     </div>
 
     <script>
-        function scriptureSearch() {
+        function scriptureApp() {
             return {
-                records: [],
                 searchQuery: '',
-                egwFilter: '',
+                items: [],
                 loading: true,
-
-                async loadData() {
-                    try {
-                        const response = await fetch('egw_scrip_processed.json');
-                        this.records = await response.json();
-                    } catch (error) {
-                        console.error('Failed to load JSON data:', error);
-                    } finally {
-                        this.loading = false;
-                    }
-                },
-
-               getCitationParts(item) {
-    if (!item.citation) return [];
-    // First split by semicolon
-    const rawParts = item.citation.split(';').map(c => c.trim()).filter(Boolean);
-    const expandedParts = [];
-
-    rawParts.forEach(part => {
-        // Match a book prefix (letters/numbers like "DA" or "3SM" or "1BC") followed by numbers/pages
-        const match = part.match(/^([A-Za-z0-9\s]+?)\s+(\d+.*)$/);
-        
-        if (match) {
-            const bookPrefix = match.trim();
-            const pageList = match;
-            
-            // Split the page section by commas (e.g., "31, 52, 103")
-            const pages = pageList.split(',').map(p => p.trim()).filter(Boolean);
-            
-            // Recombine the prefix with each individual page number
-            pages.forEach((page, index) => {
-                if (index === 0) {
-                    expandedParts.push(`${bookPrefix} ${page}`);
-                } else {
-                    // Handle cases where subsequent items might be sub-ranges or just numbers
-                    // If it's just a number, pair it with the original book prefix
-                    if (/^\d/.test(page)) {
-                        expandedParts.push(`${bookPrefix} ${page}`);
-                    } else {
-                        expandedParts.push(`${bookPrefix}, ${page}`);
-                    }
-                }
-            });
-        } else {
-            expandedParts.push(part);
-        }
-    });
-
-    return expandedParts;
-},
-
-                getFilteredCitations(item) {
-                    const parts = this.getCitationParts(item);
-                    const filterVal = this.egwFilter.trim().toUpperCase();
-                    
-                    if (!filterVal) return parts;
-
-                    // Return only the citation parts that match the active filter
-                    return parts.filter(p => p.toUpperCase().includes(filterVal));
-                },
-
-                isHighlighted(cit) {
-                    const filterVal = this.egwFilter.trim().toUpperCase();
-                    if (!filterVal) return false;
-                    return cit.toUpperCase().includes(filterVal);
-                },
-
-                get filteredResults() {
-                    let results = this.records;
-
-                    // 1. Filter by Bible reference or shorthand
-                    if (this.searchQuery.trim()) {
-                        const query = this.searchQuery.trim().toLowerCase();
-                        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        const queryRegex = new RegExp(escapedQuery, 'i');
-                        results = results.filter(item => queryRegex.test(item.search_text));
-                    } else {
-                        results = results.slice(0, 50);
-                    }
-
-                    // 2. Drill down by specific EGW book abbreviation
-                    if (this.egwFilter.trim()) {
-                        const filterVal = this.egwFilter.trim().toUpperCase();
-                        results = results.filter(item => {
-                            const parts = this.getCitationParts(item);
-                            return parts.some(p => p.toUpperCase().includes(filterVal));
+                init() {
+                    fetch('egw_scrip_processed.json')
+                        .then(res => res.json())
+                        .then(data => {
+                            this.items = data;
+                            this.loading = false;
+                        })
+                        .catch(err => {
+                            console.error('Error loading JSON:', err);
+                            this.loading = false;
                         });
-                    }
+                },
+                getCitationParts(item) {
+                    if (!item.citation) return [];
+                    
+                    // Split by semicolon first (e.g., "DA 31, 52; GC 251")
+                    const rawParts = item.citation.split(';').map(c => c.trim()).filter(Boolean);
+                    const expandedParts = [];
 
-                    return results;
+                    rawParts.forEach(part => {
+                        // Match book prefix and subsequent page list
+                        const match = part.match(/^([A-Za-z0-9\s]+?)\s+(\d+.*)$/);
+                        
+                        if (match) {
+                            const bookPrefix = match[1].trim();
+                            const pageList = match[2];
+                            
+                            // Split the page section by commas
+                            const pages = pageList.split(',').map(p => p.trim()).filter(Boolean);
+                            
+                            // Recombine the book prefix with each individual page number
+                            pages.forEach((page, index) => {
+                                if (index === 0) {
+                                    expandedParts.push(`${bookPrefix} ${page}`);
+                                } else {
+                                    if (/^\d/.test(page)) {
+                                        expandedParts.push(`${bookPrefix} ${page}`);
+                                    } else {
+                                        expandedParts.push(`${bookPrefix}, ${page}`);
+                                    }
+                                }
+                            });
+                        } else {
+                            expandedParts.push(part);
+                        }
+                    });
+
+                    return expandedParts;
+                },
+                getFilteredCitations(item) {
+                    return this.getCitationParts(item);
+                },
+                isHighlighted(cit) {
+                    if (!this.searchQuery) return false;
+                    return cit.toLowerCase().includes(this.searchQuery.toLowerCase());
+                },
+                get filteredItems() {
+                    if (!this.searchQuery) return this.items;
+                    const q = this.searchQuery.toLowerCase();
+                    return this.items.filter(item => 
+                        (item.scripture && item.scripture.toLowerCase().includes(q)) ||
+                        (item.text && item.text.toLowerCase().includes(q)) ||
+                        (item.citation && item.citation.toLowerCase().includes(q))
+                    );
                 }
             }
         }
