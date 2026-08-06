@@ -43,20 +43,23 @@
 
         <!-- Results List -->
         <div class="space-y-3" x-show="!loading">
-            <template x-for="item in filteredResults" :key="item.id || item.bible">
+            <template x-for="(item, idx) in filteredResults" :key="item.id ?? (item.bible + '__' + idx)">
                 <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg shadow hover:border-slate-600 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <span class="font-semibold text-indigo-400 whitespace-nowrap" x-text="item.bible"></span>
                     
                    <!-- Individual Citation Badges as Mobile Links -->
                    <div class="flex flex-wrap gap-1.5 justify-end">
-                       <template x-for="cit in getFilteredCitations(item)">
-                           <a :href="`https://m.egwwritings.org/en/search?query=${encodeURIComponent(cit).replace(/%20/g, '+')}`" 
+                       <template x-for="cit in item.displayCitations" :key="cit.text">
+                           <a :href="`https://m.egwwritings.org/en/search?query=${encodeURIComponent(cit.text).replace(/%20/g, '+')}`" 
                               target="_blank" 
                               rel="noopener noreferrer"
                               class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono hover:bg-indigo-600 hover:text-white transition"
-                              :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': isHighlighted(cit)}"
-                              x-text="cit"></a>
+                              :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': cit.highlighted}"
+                              x-text="cit.text"></a>
                        </template>
+                       <span x-show="item.hiddenCitationCount > 0"
+                             class="text-xs px-2.5 py-1 text-slate-500 font-mono"
+                             x-text="`+${item.hiddenCitationCount} more`"></span>
                    </div>
                 </div>
             </template>
@@ -131,34 +134,50 @@
                 }
             },
 
-            getFilteredCitations(item) {
-                const filterVal = this.egwFilter.trim().toUpperCase();
-                if (!filterVal) return item.expandedCitations;
-                return item.expandedCitations.filter(p => p.toUpperCase().includes(filterVal));
-            },
+            // Cap how many citation badges we ever render for a single item.
+            // Popular numbered-book verses (1 Cor, 2 Kings, 1 Peter, etc.) can carry
+            // hundreds of citations; rendering all of them for every one of the 50
+            // visible rows is what was hanging the page on mobile.
+            MAX_BADGES: 40,
 
-            isHighlighted(cit) {
-                const filterVal = this.egwFilter.trim().toUpperCase();
-                if (!filterVal) return false;
-                return cit.toUpperCase().includes(filterVal);
+            // Build the (already filtered/highlighted) citation list for one item,
+            // done ONCE per item per computation of filteredResults, instead of as
+            // a live method Alpine re-invokes on every reactive tick for every item.
+            buildDisplayCitations(item, eFilter) {
+                let pool = item.expandedCitations;
+                if (eFilter) {
+                    pool = pool.filter(p => p.toUpperCase().includes(eFilter));
+                }
+                const shown = pool.slice(0, this.MAX_BADGES);
+                return {
+                    displayCitations: shown.map(text => ({
+                        text,
+                        highlighted: eFilter ? text.toUpperCase().includes(eFilter) : false
+                    })),
+                    hiddenCitationCount: pool.length - shown.length
+                };
             },
 
             get filteredResults() {
                 const sQuery = this.searchQuery.trim().toLowerCase();
                 const eFilter = this.egwFilter.trim().toUpperCase();
 
-                if (!sQuery && !eFilter) {
-                    return this.records.slice(0, 50);
-                }
-
                 let results = this.records;
+
+                if (!sQuery && !eFilter) {
+                    results = results.slice(0, 50);
+                    return results.map(item => ({
+                        ...item,
+                        ...this.buildDisplayCitations(item, '')
+                    }));
+                }
 
                 if (sQuery) {
                     const cleanQuery = sQuery.replace(/[^a-z0-9]/g, '');
                     results = results.filter(item => {
                         const matchesMain = item.normSearchStr.startsWith(cleanQuery) || item.normBible.startsWith(cleanQuery);
-                        const matchesCitations = item.normExpandedCitations.some(cit => cit.startsWith(cleanQuery));
-                        return matchesMain || matchesCitations;
+                        if (matchesMain) return true;
+                        return item.normExpandedCitations.some(cit => cit.startsWith(cleanQuery));
                     });
                 }
 
@@ -168,7 +187,12 @@
                     });
                 }
 
-                return results.slice(0, 50);
+                // Only build display data (citation slicing/highlighting) for the
+                // 50 rows we're actually about to render, not the whole match set.
+                return results.slice(0, 50).map(item => ({
+                    ...item,
+                    ...this.buildDisplayCitations(item, eFilter)
+                }));
             }
         }
     }
