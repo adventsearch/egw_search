@@ -109,10 +109,18 @@
                             });
                         }
                         
+                        const bibleStr = item.bible || '';
+                        const searchTxt = item.search_text || '';
+
                         return {
                             ...item,
                             expandedCitations: expandedParts,
-                            searchStr: (item.search_text || item.bible || '').toLowerCase()
+                            searchStr: searchTxt.toLowerCase(),
+                            bibleStr: bibleStr.toLowerCase(),
+                            // Pre-compute normalized versions (no spaces/punctuation) for foolproof matching
+                            normSearchStr: searchTxt.toLowerCase().replace(/[^a-z0-9]/g, ''),
+                            normBible: bibleStr.toLowerCase().replace(/[^a-z0-9]/g, ''),
+                            normExpandedCitations: expandedParts.map(cit => cit.toLowerCase().replace(/[^a-z0-9]/g, ''))
                         };
                     });
                     
@@ -146,9 +154,10 @@
                 let results = this.records;
 
                 if (sQuery) {
+                    const cleanQuery = sQuery.replace(/[^a-z0-9]/g, '');
                     results = results.filter(item => {
-                        const matchesMain = item.searchStr.startsWith(sQuery);
-                        const matchesCitations = item.expandedCitations.some(cit => cit.toLowerCase().startsWith(sQuery));
+                        const matchesMain = item.normSearchStr.startsWith(cleanQuery) || item.normBible.startsWith(cleanQuery);
+                        const matchesCitations = item.normExpandedCitations.some(cit => cit.startsWith(cleanQuery));
                         return matchesMain || matchesCitations;
                     });
                 }
