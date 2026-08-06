@@ -1,4 +1,75 @@
-<script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EGW Scripture Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6">
+
+    <div class="max-w-4xl mx-auto px-4 py-12" 
+         x-data="scriptureSearch()" 
+         x-init="loadData()">
+        
+        <h1 class="text-3xl font-bold mb-6 text-center">EGW Scripture Index</h1>
+
+        <!-- Search Inputs Container -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="md:col-span-2">
+                <input type="text" 
+                       x-model.debounce.300ms="searchQuery" 
+                       placeholder="Search scripture (e.g., 1 Cor or Genesis 3:1)..." 
+                       class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-100 placeholder-slate-400 shadow-sm">
+            </div>
+            <div class="md:col-span-1">
+                <input type="text" 
+                       x-model.debounce.200ms="egwFilter" 
+                       placeholder="Filter EGW (e.g., GC, AA)..." 
+                       class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-100 placeholder-slate-400 shadow-sm">
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading" class="text-center py-8 text-slate-400">
+            Loading and optimizing scripture database...
+        </div>
+
+        <!-- Results Info -->
+        <div x-show="!loading" class="mb-4 text-sm text-slate-400 flex justify-between items-center">
+            <span x-text="`Showing up to ${filteredResults.length} matching entries`"></span>
+        </div>
+
+        <!-- Results List -->
+        <div class="space-y-3" x-show="!loading">
+            <template x-for="item in filteredResults" :key="item.id || item.bible">
+                <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg shadow hover:border-slate-600 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <span class="font-semibold text-indigo-400 whitespace-nowrap" x-text="item.bible"></span>
+                    
+                   <!-- Individual Citation Badges as Mobile Links -->
+                   <div class="flex flex-wrap gap-1.5 justify-end">
+                       <template x-for="cit in getFilteredCitations(item)">
+                           <a :href="`https://m.egwwritings.org/en/search?query=${encodeURIComponent(cit).replace(/%20/g, '+')}`" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono hover:bg-indigo-600 hover:text-white transition"
+                              :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': isHighlighted(cit)}"
+                              x-text="cit"></a>
+                       </template>
+                   </div>
+                </div>
+            </template>
+            
+            <!-- Empty State -->
+            <div x-show="filteredResults.length === 0 && !loading" class="text-center py-12 text-slate-500 bg-slate-800/50 rounded-lg border border-slate-800">
+                No matching scripture references found.
+            </div>
+        </div>
+
+    </div>
+
+    <script>
         function scriptureSearch() {
             return {
                 records: [],
@@ -91,3 +162,5 @@
             }
         }
     </script>
+</body>
+</html>
