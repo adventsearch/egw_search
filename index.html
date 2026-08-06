@@ -40,7 +40,7 @@
 
         <!-- Results Info -->
         <div x-show="!loading" class="mb-4 text-sm text-slate-400 flex justify-between items-center">
-            <span x-text="`Showing ${filteredResults.length} of ${records.length} entries`"></span>
+            <span x-text="`Showing up to ${filteredResults.length} matching entries`"></span>
         </div>
 
         <!-- Results List -->
@@ -148,8 +148,6 @@
                         const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                         const queryRegex = new RegExp(escapedQuery, 'i');
                         results = results.filter(item => queryRegex.test(item.search_text));
-                    } else {
-                        results = results.slice(0, 50);
                     }
 
                     if (this.egwFilter.trim()) {
@@ -160,7 +158,8 @@
                         });
                     }
 
-                    return results;
+                    // Strict cap to prevent mobile DOM overload and crashes
+                    return results.slice(0, 50);
                 }
             }
         }
