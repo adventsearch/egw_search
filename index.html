@@ -69,98 +69,100 @@
 
     </div>
 
-    <script>
-        function scriptureSearch() {
-            return {
-                records: [],
-                searchQuery: '',
-                egwFilter: '',
-                loading: true,
+<script>
+    function scriptureSearch() {
+        return {
+            records: [],
+            searchQuery: '',
+            egwFilter: '',
+            loading: true,
 
-                async loadData() {
-                    try {
-                        const response = await fetch('egw_scrip_processed.json');
-                        const rawData = await response.json();
+            async loadData() {
+                try {
+                    const response = await fetch('egw_scrip_processed.json');
+                    const rawData = await response.json();
+                    
+                    this.records = rawData.map(item => {
+                        let expandedParts = [];
                         
-                        this.records = rawData.map(item => {
-                            let expandedParts = [];
-                            
-                            if (item.citation) {
-                                const rawParts = item.citation.split(';').map(c => c.trim()).filter(Boolean);
-                                rawParts.forEach(part => {
-                                    const firstDigitMatch = part.match(/\d/);
-                                    if (!firstDigitMatch) {
-                                        expandedParts.push(part);
-                                        return;
+                        if (item.citation) {
+                            const rawParts = item.citation.split(';').map(c => c.trim()).filter(Boolean);
+                            rawParts.forEach(part => {
+                                const firstDigitMatch = part.match(/\d/);
+                                if (!firstDigitMatch) {
+                                    expandedParts.push(part);
+                                    return;
+                                }
+                                
+                                const digitIdx = firstDigitMatch.index;
+                                const prefix = part.substring(0, digitIdx).trim();
+                                const rest = part.substring(digitIdx);
+                                
+                                const tokens = rest.split(',').map(t => t.trim()).filter(Boolean);
+                                tokens.forEach((token, idx) => {
+                                    if (idx === 0 || /^\d/.test(token)) {
+                                        expandedParts.push(`${prefix} ${token}`);
+                                    } else {
+                                        expandedParts.push(`${prefix}, ${token}`);
                                     }
-                                    
-                                    const digitIdx = firstDigitMatch.index;
-                                    const prefix = part.substring(0, digitIdx).trim();
-                                    const rest = part.substring(digitIdx);
-                                    
-                                    const tokens = rest.split(',').map(t => t.trim()).filter(Boolean);
-                                    tokens.forEach((token, idx) => {
-                                        if (idx === 0 || /^\d/.test(token)) {
-                                            expandedParts.push(`${prefix} ${token}`);
-                                        } else {
-                                            expandedParts.push(`${prefix}, ${token}`);
-                                        }
-                                    });
                                 });
-                            }
-                            
-                            return {
-                                ...item,
-                                expandedCitations: expandedParts,
-                                searchStr: (item.search_text || item.bible || '').toLowerCase()
-                            };
-                        });
+                            });
+                        }
                         
-                    } catch (error) {
-                        console.error('Failed to load JSON data:', error);
-                    } finally {
-                        this.loading = false;
-                    }
-                },
-
-                getFilteredCitations(item) {
-                    const filterVal = this.egwFilter.trim().toUpperCase();
-                    if (!filterVal) return item.expandedCitations;
-                    return item.expandedCitations.filter(p => p.toUpperCase().includes(filterVal));
-                },
-
-                isHighlighted(cit) {
-                    const filterVal = this.egwFilter.trim().toUpperCase();
-                    if (!filterVal) return false;
-                    return cit.toUpperCase().includes(filterVal);
-                },
-
-                get filteredResults() {
-                    const sQuery = this.searchQuery.trim().toLowerCase();
-                    const eFilter = this.egwFilter.trim().toUpperCase();
-
-                    // Prevent freezing on single-character or empty queries that match everything
-                    if (!sQuery && !eFilter) {
-                        return this.records.slice(0, 50);
-                    }
-
-                    let results = this.records;
-
-                    if (sQuery) {
-                        // If user types just a single number, restrict to queries starting with it or skip heavy filtering to prevent lockup
-                        results = results.filter(item => item.searchStr.includes(sQuery));
-                    }
-
-                    if (eFilter) {
-                        results = results.filter(item => {
-                            return item.expandedCitations.some(p => p.toUpperCase().includes(eFilter));
-                        });
-                    }
-
-                    return results.slice(0, 50);
+                        return {
+                            ...item,
+                            expandedCitations: expandedParts,
+                            searchStr: (item.search_text || item.bible || '').toLowerCase()
+                        };
+                    });
+                    
+                } catch (error) {
+                    console.error('Failed to load JSON data:', error);
+                } finally {
+                    this.loading = false;
                 }
+            },
+
+            getFilteredCitations(item) {
+                const filterVal = this.egwFilter.trim().toUpperCase();
+                if (!filterVal) return item.expandedCitations;
+                return item.expandedCitations.filter(p => p.toUpperCase().includes(filterVal));
+            },
+
+            isHighlighted(cit) {
+                const filterVal = this.egwFilter.trim().toUpperCase();
+                if (!filterVal) return false;
+                return cit.toUpperCase().includes(filterVal);
+            },
+
+            get filteredResults() {
+                const sQuery = this.searchQuery.trim().toLowerCase();
+                const eFilter = this.egwFilter.trim().toUpperCase();
+
+                if (!sQuery && !eFilter) {
+                    return this.records.slice(0, 50);
+                }
+
+                let results = this.records;
+
+                if (sQuery) {
+                    results = results.filter(item => {
+                        const matchesMain = item.searchStr.startsWith(sQuery);
+                        const matchesCitations = item.expandedCitations.some(cit => cit.toLowerCase().startsWith(sQuery));
+                        return matchesMain || matchesCitations;
+                    });
+                }
+
+                if (eFilter) {
+                    results = results.filter(item => {
+                        return item.expandedCitations.some(p => p.toUpperCase().includes(eFilter));
+                    });
+                }
+
+                return results.slice(0, 50);
             }
         }
-    </script>
+    }
+</script>
 </body>
 </html>
