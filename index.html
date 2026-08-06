@@ -163,8 +163,19 @@
 
 <script>
     function scriptureSearch() {
+        // IMPORTANT: this holds the full ~14k-record dataset as a PLAIN array,
+        // deliberately kept OUTSIDE the object returned below. Alpine makes
+        // everything in the returned x-data object deeply reactive (Proxy-wrapped),
+        // which is fine for small UI state but very expensive for a large dataset:
+        // every property read during a filter/scan goes through reactivity
+        // tracking overhead. Since this array never needs to trigger a UI update
+        // by itself (only searchQuery/egwFilter do), keeping it as a plain
+        // variable means scanning it on every keystroke is normal, cheap JS
+        // array work instead of ~14,000 Proxy-trapped reads per keystroke —
+        // this was the real source of the memory spikes and hangs.
+        let records = [];
+
         return {
-            records: [],
             searchQuery: '',
             egwFilter: '',
             loading: true,
@@ -174,7 +185,7 @@
                     const response = await fetch('egw_scrip_processed.json');
                     const rawData = await response.json();
                     
-                    this.records = rawData.map(item => {
+                    records = rawData.map(item => {
                         let expandedParts = [];
                         
                         if (item.citation) {
@@ -207,8 +218,6 @@
                         return {
                             ...item,
                             expandedCitations: expandedParts,
-                            searchStr: searchTxt.toLowerCase(),
-                            bibleStr: bibleStr.toLowerCase(),
                             // Pre-compute normalized versions (no spaces/punctuation) for foolproof matching
                             normSearchStr: searchTxt.toLowerCase().replace(/[^a-z0-9]/g, ''),
                             normBible: bibleStr.toLowerCase().replace(/[^a-z0-9]/g, ''),
@@ -251,7 +260,7 @@
                 const sQuery = this.searchQuery.trim().toLowerCase();
                 const eFilter = this.egwFilter.trim().toUpperCase();
 
-                let results = this.records;
+                let results = records;
 
                 if (!sQuery && !eFilter) {
                     results = results.slice(0, 50);
