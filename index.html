@@ -52,12 +52,12 @@
                    <!-- Individual Citation Badges as Links -->
                    <div class="flex flex-wrap gap-1.5 justify-end">
                        <template x-for="cit in getFilteredCitations(item)">
-                           <a :href="`https://www.google.com/search?q=${encodeURIComponent('egwwritings.org ' + cit)}`" 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono hover:bg-indigo-600 hover:text-white transition"
-                              :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': isHighlighted(cit)}"
-                              x-text="cit"></a>
+                           <a :href="`https://m.egwwritings.org/en/search?query=${encodeURIComponent(cit).replace(/%20/g, '+')}`" 
+   target="_blank" 
+   rel="noopener noreferrer"
+   class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono hover:bg-indigo-600 hover:text-white transition"
+   :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': isHighlighted(cit)}"
+   x-text="cit"></a>
                        </template>
                    </div>
                 </div>
