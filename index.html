@@ -17,14 +17,12 @@
 
         <!-- Search Inputs Container -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <!-- Scripture Search with Debounce -->
             <div class="md:col-span-2">
                 <input type="text" 
-                       x-model.debounce.400ms="searchQuery" 
+                       x-model.debounce.300ms="searchQuery" 
                        placeholder="Search scripture (e.g., 1 Cor or Genesis 3:1)..." 
                        class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-100 placeholder-slate-400 shadow-sm">
             </div>
-            <!-- EGW Citation Filter -->
             <div class="md:col-span-1">
                 <input type="text" 
                        x-model.debounce.200ms="egwFilter" 
@@ -35,7 +33,7 @@
 
         <!-- Loading State -->
         <div x-show="loading" class="text-center py-8 text-slate-400">
-            Loading scripture database...
+            Loading and optimizing scripture database...
         </div>
 
         <!-- Results Info -->
@@ -45,7 +43,7 @@
 
         <!-- Results List -->
         <div class="space-y-3" x-show="!loading">
-            <template x-for="item in filteredResults" :key="item.id || (item.bible + item.citation)">
+            <template x-for="item in filteredResults" :key="item.id || item.bible">
                 <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg shadow hover:border-slate-600 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <span class="font-semibold text-indigo-400 whitespace-nowrap" x-text="item.bible"></span>
                     
@@ -82,7 +80,44 @@
                 async loadData() {
                     try {
                         const response = await fetch('egw_scrip_processed.json');
-                        this.records = await response.json();
+                        const rawData = await response.json();
+                        
+                        // PRE-COMPUTE: Do the heavy lifting exactly once on load.
+                        this.records = rawData.map(item => {
+                            let expandedParts = [];
+                            
+                            if (item.citation) {
+                                const rawParts = item.citation.split(';').map(c => c.trim()).filter(Boolean);
+                                rawParts.forEach(part => {
+                                    const firstDigitMatch = part.match(/\d/);
+                                    if (!firstDigitMatch) {
+                                        expandedParts.push(part);
+                                        return;
+                                    }
+                                    
+                                    const digitIdx = firstDigitMatch.index;
+                                    const prefix = part.substring(0, digitIdx).trim();
+                                    const rest = part.substring(digitIdx);
+                                    
+                                    const tokens = rest.split(',').map(t => t.trim()).filter(Boolean);
+                                    tokens.forEach((token, idx) => {
+                                        if (idx === 0 || /^\d/.test(token)) {
+                                            expandedParts.push(`${prefix} ${token}`);
+                                        } else {
+                                            expandedParts.push(`${prefix}, ${token}`);
+                                        }
+                                    });
+                                });
+                            }
+                            
+                            // Attach the pre-computed arrays and lowercase search strings directly to the item object
+                            return {
+                                ...item,
+                                expandedCitations: expandedParts,
+                                searchStr: (item.search_text || item.bible || '').toLowerCase()
+                            };
+                        });
+                        
                     } catch (error) {
                         console.error('Failed to load JSON data:', error);
                     } finally {
@@ -90,48 +125,10 @@
                     }
                 },
 
-                getCitationParts(item) {
-                    if (!item.citation) return [];
-                    
-                    const rawParts = item.citation.split(';').map(c => c.trim()).filter(Boolean);
-                    const expandedParts = [];
-
-                    rawParts.forEach(part => {
-                        const firstDigitMatch = part.match(/\d/);
-                        if (!firstDigitMatch) {
-                            expandedParts.push(part);
-                            return;
-                        }
-                        
-                        const digitIdx = firstDigitMatch.index;
-                        const prefix = part.substring(0, digitIdx).trim();
-                        const rest = part.substring(digitIdx);
-                        
-                        const tokens = rest.split(',').map(t => t.trim()).filter(Boolean);
-                        
-                        tokens.forEach((token, idx) => {
-                            if (idx === 0) {
-                                expandedParts.push(`${prefix} ${token}`);
-                            } else {
-                                if (/^\d/.test(token)) {
-                                    expandedParts.push(`${prefix} ${token}`);
-                                } else {
-                                    expandedParts.push(`${prefix}, ${token}`);
-                                }
-                            }
-                        });
-                    });
-
-                    return expandedParts;
-                },
-
                 getFilteredCitations(item) {
-                    const parts = this.getCitationParts(item);
                     const filterVal = this.egwFilter.trim().toUpperCase();
-                    
-                    if (!filterVal) return parts;
-
-                    return parts.filter(p => p.toUpperCase().includes(filterVal));
+                    if (!filterVal) return item.expandedCitations;
+                    return item.expandedCitations.filter(p => p.toUpperCase().includes(filterVal));
                 },
 
                 isHighlighted(cit) {
@@ -142,23 +139,21 @@
 
                 get filteredResults() {
                     let results = this.records;
+                    const sQuery = this.searchQuery.trim().toLowerCase();
+                    const eFilter = this.egwFilter.trim().toUpperCase();
 
-                    if (this.searchQuery.trim()) {
-                        const query = this.searchQuery.trim().toLowerCase();
-                        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        const queryRegex = new RegExp(escapedQuery, 'i');
-                        results = results.filter(item => queryRegex.test(item.search_text));
+                    // Fast string inclusion check (much lighter than regex)
+                    if (sQuery) {
+                        results = results.filter(item => item.searchStr.includes(sQuery));
                     }
 
-                    if (this.egwFilter.trim()) {
-                        const filterVal = this.egwFilter.trim().toUpperCase();
+                    if (eFilter) {
                         results = results.filter(item => {
-                            const parts = this.getCitationParts(item);
-                            return parts.some(p => p.toUpperCase().includes(filterVal));
+                            return item.expandedCitations.some(p => p.toUpperCase().includes(eFilter));
                         });
                     }
 
-                    // Strict cap to prevent mobile DOM overload and crashes
+                    // Strict cap at 50 items prevents DOM rendering crashes on mobile
                     return results.slice(0, 50);
                 }
             }
