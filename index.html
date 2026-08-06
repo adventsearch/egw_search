@@ -45,21 +45,21 @@
 
         <!-- Results List -->
         <div class="space-y-3" x-show="!loading">
-            <template x-for="item in filteredResults" :key="item.id">
+            <template x-for="item in filteredResults" :key="item.id || (item.bible + item.citation)">
                 <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg shadow hover:border-slate-600 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <span class="font-semibold text-indigo-400 whitespace-nowrap" x-text="item.bible"></span>
                     
                    <!-- Individual Citation Badges as Links -->
-<div class="flex flex-wrap gap-1.5 justify-end">
-    <template x-for="cit in getFilteredCitations(item)">
-        <a :href="`https://www.google.com/search?q=${encodeURIComponent('egwwritings.org ' + cit)}`" 
-           target="_blank" 
-           rel="noopener noreferrer"
-           class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono hover:bg-indigo-600 hover:text-white transition"
-           :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': isHighlighted(cit)}"
-           x-text="cit"></a>
-    </template>
-</div>
+                   <div class="flex flex-wrap gap-1.5 justify-end">
+                       <template x-for="cit in getFilteredCitations(item)">
+                           <a :href="`https://www.google.com/search?q=${encodeURIComponent('egwwritings.org ' + cit)}`" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono hover:bg-indigo-600 hover:text-white transition"
+                              :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': isHighlighted(cit)}"
+                              x-text="cit"></a>
+                       </template>
+                   </div>
                 </div>
             </template>
             
@@ -92,7 +92,37 @@
 
                 getCitationParts(item) {
                     if (!item.citation) return [];
-                    return item.citation.split(';').map(c => c.trim()).filter(Boolean);
+                    
+                    const rawParts = item.citation.split(';').map(c => c.trim()).filter(Boolean);
+                    const expandedParts = [];
+
+                    rawParts.forEach(part => {
+                        const firstDigitMatch = part.match(/\d/);
+                        if (!firstDigitMatch) {
+                            expandedParts.push(part);
+                            return;
+                        }
+                        
+                        const digitIdx = firstDigitMatch.index;
+                        const prefix = part.substring(0, digitIdx).trim();
+                        const rest = part.substring(digitIdx);
+                        
+                        const tokens = rest.split(',').map(t => t.trim()).filter(Boolean);
+                        
+                        tokens.forEach((token, idx) => {
+                            if (idx === 0) {
+                                expandedParts.push(`${prefix} ${token}`);
+                            } else {
+                                if (/^\d/.test(token)) {
+                                    expandedParts.push(`${prefix} ${token}`);
+                                } else {
+                                    expandedParts.push(`${prefix}, ${token}`);
+                                }
+                            }
+                        });
+                    });
+
+                    return expandedParts;
                 },
 
                 getFilteredCitations(item) {
@@ -101,7 +131,6 @@
                     
                     if (!filterVal) return parts;
 
-                    // Return only the citation parts that match the active filter
                     return parts.filter(p => p.toUpperCase().includes(filterVal));
                 },
 
@@ -114,7 +143,6 @@
                 get filteredResults() {
                     let results = this.records;
 
-                    // 1. Filter by Bible reference or shorthand
                     if (this.searchQuery.trim()) {
                         const query = this.searchQuery.trim().toLowerCase();
                         const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -124,7 +152,6 @@
                         results = results.slice(0, 50);
                     }
 
-                    // 2. Drill down by specific EGW book abbreviation
                     if (this.egwFilter.trim()) {
                         const filterVal = this.egwFilter.trim().toUpperCase();
                         results = results.filter(item => {
