@@ -139,7 +139,7 @@
                    <!-- Individual Citation Badges as Mobile Links -->
                    <div class="flex flex-wrap gap-1.5 justify-end">
                        <template x-for="cit in item.displayCitations" :key="cit.text">
-                           <a :href="`https://m.egwwritings.org/en/search?query=${encodeURIComponent(cit.text).replace(/%20/g, '+')}`" 
+                           <a :href="`https://m.egwwritings.org/en/search?query=${encodeURIComponent(cit.link).replace(/%20/g, '+')}`" 
                               target="_blank" 
                               rel="noopener noreferrer"
                               class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono hover:bg-indigo-600 hover:text-white transition"
@@ -187,9 +187,29 @@
                     
                     records = rawData.map(item => {
                         let expandedParts = [];
-                        
-                        if (item.citation) {
-                            const rawParts = item.citation.split(';').map(c => c.trim()).filter(Boolean);
+
+                        let bibleStr = item.bible || '';
+                        let citationStr = item.citation || '';
+
+                        // Fix: source lines look like "3:1 - 10 4BC 1164; 6BC 1101; ..."
+                        // i.e. "<verse range> <citation list>". When the trailing
+                        // number of a verse range (the "10") gets separated from its
+                        // dash upstream, it's left dangling at the very start of the
+                        // citation string instead of staying part of the range, which
+                        // produced bible="John 3:1 -" and citation="10 4BC 1164; ...".
+                        // Detect that specific pattern -- bible ends in a bare "-" AND
+                        // citation starts with a standalone number+space (a real
+                        // abbreviation like "4BC" or "9T" has a letter immediately
+                        // after the digit, no space, so this won't false-match those)
+                        // -- and reattach the number to the verse range.
+                        const leadingNumMatch = citationStr.match(/^(\d+)\s+(.*)$/);
+                        if (leadingNumMatch && /-\s*$/.test(bibleStr.trim())) {
+                            bibleStr = bibleStr.trim() + ' ' + leadingNumMatch[1];
+                            citationStr = leadingNumMatch[2];
+                        }
+
+                        if (citationStr) {
+                            const rawParts = citationStr.split(';').map(c => c.trim()).filter(Boolean);
                             rawParts.forEach(part => {
                                 const firstDigitMatch = part.match(/\d/);
                                 if (!firstDigitMatch) {
@@ -212,11 +232,11 @@
                             });
                         }
                         
-                        const bibleStr = item.bible || '';
                         const searchTxt = item.search_text || '';
 
                         return {
                             ...item,
+                            bible: bibleStr,
                             expandedCitations: expandedParts,
                             // Pre-compute normalized versions (no spaces/punctuation) for foolproof matching
                             normSearchStr: searchTxt.toLowerCase().replace(/[^a-z0-9]/g, ''),
@@ -250,6 +270,13 @@
                 return {
                     displayCitations: shown.map(text => ({
                         text,
+                        // The site's search only works with "<abbrev> <page>", so
+                        // page ranges like "DA 167-77" or "6T 154-5" need to be
+                        // truncated to "DA 167" / "6T 154" for the link -- but the
+                        // badge itself still shows the full range for the reader.
+                        // (":"-style suffixes like "AG 341:k" aren't ranges, so
+                        // they're left untouched.)
+                        link: text.includes('-') ? text.split('-')[0].trim() : text,
                         highlighted: eFilter ? text.toUpperCase().includes(eFilter) : false
                     })),
                     hiddenCitationCount: pool.length - shown.length
