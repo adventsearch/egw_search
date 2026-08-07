@@ -270,17 +270,30 @@
                 return {
                     displayCitations: shown.map(text => ({
                         text,
-                        // The site's search only works with "<abbrev> <page>", so
-                        // page ranges like "DA 167-77" or "6T 154-5" need to be
-                        // truncated to "DA 167" / "6T 154" for the link -- but the
-                        // badge itself still shows the full range for the reader.
-                        // (":"-style suffixes like "AG 341:k" aren't ranges, so
-                        // they're left untouched.)
-                        link: text.includes('-') ? text.split('-')[0].trim() : text,
+                        link: this.toLinkCitation(text),
                         highlighted: eFilter ? text.toUpperCase().includes(eFilter) : false
                     })),
                     hiddenCitationCount: pool.length - shown.length
                 };
+            },
+
+            // The site's search only works with "<abbrev> <page>", so the
+            // display text needs some trimming down for the outbound link
+            // (the badge itself keeps showing the full original text):
+            //  - page ranges like "DA 167-77" or "6T 154-5" -> "DA 167" / "6T 154"
+            //  - a colon suffix like "AG 341:k" is a letter marker, not part of
+            //    the page number, so it's dropped -> "AG 341"
+            //  - a colon suffix that IS a number, like "TDG 48:4", is a real
+            //    sub-page reference and is kept as-is
+            toLinkCitation(text) {
+                let link = text.includes('-') ? text.split('-')[0].trim() : text;
+                if (link.includes(':')) {
+                    const [pre, suf] = link.split(':');
+                    if (!/^\d+$/.test(suf.trim())) {
+                        link = pre.trim();
+                    }
+                }
+                return link;
             },
 
             get filteredResults() {
