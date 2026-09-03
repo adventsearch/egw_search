@@ -2,338 +2,216 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EGW Scripture Search</title>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <title>EGW Scripture Index Search</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        /* Static stylesheet replacing the Tailwind Play CDN.
-           The Play CDN (cdn.tailwindcss.com) does runtime JIT compilation:
-           it watches the DOM with a MutationObserver and rescans + rebuilds
-           the entire stylesheet on every DOM change. Since this page re-renders
-           part of the results list on every keystroke, that was causing the
-           CDN to repeatedly recompile CSS in the background -- the real source
-           of the memory/CPU spikes and mobile hangs. This static CSS covers
-           only the utility classes this page actually uses, so no runtime
-           compiler is needed at all. */
-        *, *::before, *::after { box-sizing: border-box; }
-        body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
-
-        .bg-slate-900 { background-color: #0f172a; }
-        .bg-slate-800 { background-color: #1e293b; }
-        .bg-slate-800\/50 { background-color: rgba(30,41,59,0.5); }
-        .bg-slate-700 { background-color: #334155; }
-        .bg-indigo-900\/80 { background-color: rgba(49,46,129,0.8); }
-
-        .text-slate-100 { color: #f1f5f9; }
-        .text-slate-300 { color: #cbd5e1; }
-        .text-slate-400 { color: #94a3b8; }
-        .text-slate-500 { color: #64748b; }
-        .text-indigo-200 { color: #c7d2fe; }
-        .text-indigo-400 { color: #818cf8; }
-        .placeholder-slate-400::placeholder { color: #94a3b8; }
-
-        .border { border-width: 1px; border-style: solid; border-color: currentColor; }
-        .border-slate-700 { border-color: #334155; }
-        .border-slate-800 { border-color: #1e293b; }
-        .border-indigo-500 { border-color: #6366f1; }
-
-        .min-h-screen { min-height: 100vh; }
-        .max-w-4xl { max-width: 56rem; }
-        .mx-auto { margin-left: auto; margin-right: auto; }
-        .mb-4 { margin-bottom: 1rem; }
-        .mb-6 { margin-bottom: 1.5rem; }
-
-        .p-4 { padding: 1rem; }
-        .p-6 { padding: 1.5rem; }
-        .px-4 { padding-left: 1rem; padding-right: 1rem; }
-        .px-2\.5 { padding-left: 0.625rem; padding-right: 0.625rem; }
-        .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
-        .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
-        .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
-        .py-12 { padding-top: 3rem; padding-bottom: 3rem; }
-
-        .grid { display: grid; }
-        .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
-        .flex { display: flex; }
-        .flex-col { flex-direction: column; }
-        .flex-wrap { flex-wrap: wrap; }
-        .items-center { align-items: center; }
-        .items-start { align-items: flex-start; }
-        .justify-between { justify-content: space-between; }
-        .justify-end { justify-content: flex-end; }
-        .space-y-3 > * + * { margin-top: 0.75rem; }
-        .gap-4 { gap: 1rem; }
-        .gap-1\.5 { gap: 0.375rem; }
-
-        .w-full { width: 100%; }
-        .rounded { border-radius: 0.25rem; }
-        .rounded-lg { border-radius: 0.5rem; }
-        .shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.24); }
-        .shadow-sm { box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-        .whitespace-nowrap { white-space: nowrap; }
-        .transition { transition: all 0.15s ease; }
-
-        .text-center { text-align: center; }
-        .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
-        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
-        .text-xs { font-size: 0.75rem; line-height: 1rem; }
-        .font-bold { font-weight: 700; }
-        .font-semibold { font-weight: 600; }
-        .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-        input.focus\:outline-none:focus { outline: none; }
-        input.focus\:border-indigo-500:focus { border-color: #6366f1; }
-        .hover\:border-slate-600:hover { border-color: #475569; }
-        .hover\:bg-indigo-600:hover { background-color: #4f46e5; }
-        .hover\:text-white:hover { color: #fff; }
-
-        @media (min-width: 768px) {
-            .md\:col-span-2 { grid-column: span 2 / span 2; }
-            .md\:col-span-1 { grid-column: span 1 / span 1; }
-            .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-            .md\:flex-row { flex-direction: row; }
-            .md\:items-center { align-items: center; }
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 40px auto; 
+            padding: 0 20px; 
+            background-color: #121212; 
+            color: #e0e0e0; 
         }
+        h1 { color: #ffffff; }
+        input { 
+            width: 100%; 
+            padding: 12px; 
+            font-size: 1rem; 
+            box-sizing: border-box; 
+            background-color: #1e1e1e; 
+            border: 1px solid #333; 
+            color: #ffffff; 
+            border-radius: 4px;
+        }
+        input::placeholder { color: #888; }
+        .citation-link { 
+            display: inline-block; 
+            margin-right: 10px; 
+            margin-bottom: 5px; 
+            color: #64b5f6; 
+            text-decoration: none; 
+        }
+        .citation-link:hover { text-decoration: underline; }
+        .chapter-block { 
+            margin-top: 15px; 
+            border-bottom: 1px solid #333; 
+            padding-bottom: 10px; 
+        }
+        h3 { color: #90caf9; }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-6">
-
-    <div class="max-w-4xl mx-auto px-4 py-12" 
-         x-data="scriptureSearch()" 
-         x-init="loadData()">
+<body>
+    <div id="app">
+        <h1>EGW Scripture Index Search</h1>
+        <input type="text" v-model="searchQuery" placeholder="Try '2 chron 3', '2 kings 3', '1 cor 13:3', 'jude', etc...">
         
-        <h1 class="text-3xl font-bold mb-6 text-center">EGW Scripture Index</h1>
-
-        <!-- Search Inputs Container -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="md:col-span-2">
-                <input type="text" 
-                       x-model.debounce.300ms="searchQuery" 
-                       placeholder="Search scripture (e.g., 1 Cor or Genesis 3:1)..." 
-                       class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-100 placeholder-slate-400 shadow-sm">
-            </div>
-            <div class="md:col-span-1">
-                <input type="text" 
-                       x-model.debounce.200ms="egwFilter" 
-                       placeholder="Filter EGW (e.g., GC, AA)..." 
-                       class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-100 placeholder-slate-400 shadow-sm">
-            </div>
-        </div>
-
-        <!-- Loading State -->
-        <div x-show="loading" class="text-center py-8 text-slate-400">
-            Loading and optimizing scripture database...
-        </div>
-
-        <!-- Results Info -->
-        <div x-show="!loading" class="mb-4 text-sm text-slate-400 flex justify-between items-center">
-            <span x-text="`Showing up to ${filteredResults.length} matching entries`"></span>
-        </div>
-
-        <!-- Results List -->
-        <div class="space-y-3" x-show="!loading">
-            <template x-for="(item, idx) in filteredResults" :key="item.id ?? (item.bible + '__' + idx)">
-                <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg shadow hover:border-slate-600 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <span class="font-semibold text-indigo-400 whitespace-nowrap" x-text="item.bible"></span>
-                    
-                   <!-- Individual Citation Badges as Mobile Links -->
-                   <div class="flex flex-wrap gap-1.5 justify-end">
-                       <template x-for="cit in item.displayCitations" :key="cit.text">
-                           <a :href="`https://m.egwwritings.org/en/search?query=${encodeURIComponent(cit.link).replace(/%20/g, '+')}`" 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono hover:bg-indigo-600 hover:text-white transition"
-                              :class="{'bg-indigo-900/80 text-indigo-200 border border-indigo-500': cit.highlighted}"
-                              x-text="cit.text"></a>
-                       </template>
-                       <span x-show="item.hiddenCitationCount > 0"
-                             class="text-xs px-2.5 py-1 text-slate-500 font-mono"
-                             x-text="`+${item.hiddenCitationCount} more`"></span>
-                   </div>
+        <div v-if="results.length">
+            <div v-for="res in results" class="chapter-block">
+                <h3>{{ res.chapterName }} (Verse {{ res.verse }})</h3>
+                <div>
+                    <a v-for="cit in res.citations" 
+                       :href="`https://m.egwwritings.org/en/search?query=${encodeURIComponent(cleanCitation(cit)).replace(/%20/g, '+')}`" 
+                       target="_blank" 
+                       class="citation-link">
+                        {{ cit }};
+                    </a>
                 </div>
-            </template>
-            
-            <!-- Empty State -->
-            <div x-show="filteredResults.length === 0 && !loading" class="text-center py-12 text-slate-500 bg-slate-800/50 rounded-lg border border-slate-800">
-                No matching scripture references found.
             </div>
         </div>
-
+        <p v-else-if="searchQuery" style="color: #aaa;">No matching results found.</p>
     </div>
 
-<script>
-    function scriptureSearch() {
-        // IMPORTANT: this holds the full ~14k-record dataset as a PLAIN array,
-        // deliberately kept OUTSIDE the object returned below. Alpine makes
-        // everything in the returned x-data object deeply reactive (Proxy-wrapped),
-        // which is fine for small UI state but very expensive for a large dataset:
-        // every property read during a filter/scan goes through reactivity
-        // tracking overhead. Since this array never needs to trigger a UI update
-        // by itself (only searchQuery/egwFilter do), keeping it as a plain
-        // variable means scanning it on every keystroke is normal, cheap JS
-        // array work instead of ~14,000 Proxy-trapped reads per keystroke —
-        // this was the real source of the memory spikes and hangs.
-        let records = [];
+    <script>
+        const bookAliases = {
+            "gen": "Genesis", "genesis": "Genesis",
+            "ex": "Exodus", "exo": "Exodus", "exodus": "Exodus",
+            "lev": "Leviticus", "leviticus": "Leviticus",
+            "num": "Numbers", "numbers": "Numbers",
+            "deut": "Deuteronomy", "deu": "Deuteronomy", "deuteronomy": "Deuteronomy",
+            "josh": "Joshua", "joshua": "Joshua",
+            "judg": "Judges", "judges": "Judges",
+            "ruth": "Ruth",
+            "1sam": "1 Samuel", "1 sam": "1 Samuel", "1 sa": "1 Samuel", "1 samuel": "1 Samuel",
+            "2sam": "2 Samuel", "2 sam": "2 Samuel", "2 sa": "2 Samuel", "2 samuel": "2 Samuel",
+            "1kings": "1 Kings", "1 kings": "1 Kings", "1 ki": "1 Kings",
+            "2kings": "2 Kings", "2 kings": "2 Kings", "2 ki": "2 Kings",
+            "1chron": "1 Chronicles", "1 chron": "1 Chronicles", "1 ch": "1 Chronicles", "1 chronicles": "1 Chronicles",
+            "2chron": "2 Chronicles", "2 chron": "2 Chronicles", "2 ch": "2 Chronicles", "2 chronicles": "2 Chronicles",
+            "ezra": "Ezra",
+            "neh": "Nehemiah", "nehemiah": "Nehemiah",
+            "esth": "Esther", "esther": "Esther",
+            "job": "Job",
+            "ps": "Psalms", "psa": "Psalms", "psalms": "Psalms",
+            "prov": "Proverbs", "pro": "Proverbs", "proverbs": "Proverbs",
+            "eccl": "Ecclesiastes", "ecc": "Ecclesiastes", "ecclesiastes": "Ecclesiastes",
+            "song": "Song of Solomon", "sos": "Song of Solomon", "song of solomon": "Song of Solomon",
+            "isa": "Isaiah", "isaiah": "Isaiah",
+            "jer": "Jeremiah", "jeremiah": "Jeremiah",
+            "lam": "Lamentations", "lamentations": "Lamentations",
+            "ezek": "Ezekiel", "eze": "Ezekiel", "ezekiel": "Ezekiel",
+            "dan": "Daniel", "daniel": "Daniel",
+            "hos": "Hosea", "hosea": "Hosea",
+            "joel": "Joel",
+            "amos": "Amos",
+            "obad": "Obadiah", "obadiah": "Obadiah",
+            "jonah": "Jonah",
+            "mic": "Micah", "micah": "Micah",
+            "nah": "Nahum", "nahum": "Nahum",
+            "hab": "Habakkuk", "habakkuk": "Habakkuk",
+            "zeph": "Zephaniah", "zep": "Zephaniah", "zephaniah": "Zephaniah",
+            "hag": "Haggai", "haggai": "Haggai",
+            "zech": "Zechariah", "zec": "Zechariah", "zechariah": "Zechariah",
+            "mal": "Malachi", "malachi": "Malachi",
+            "matt": "Matthew", "mat": "Matthew", "matthew": "Matthew",
+            "mark": "Mark", "mar": "Mark",
+            "luke": "Luke", "luk": "Luke",
+            "john": "John", "joh": "John",
+            "acts": "Acts",
+            "rom": "Romans", "romans": "Romans",
+            "1cor": "1 Corinthians", "1 cor": "1 Corinthians", "1 co": "1 Corinthians", "1 corinthians": "1 Corinthians",
+            "2cor": "2 Corinthians", "2 cor": "2 Corinthians", "2 co": "2 Corinthians", "2 corinthians": "2 Corinthians",
+            "gal": "Galatians", "galatians": "Galatians",
+            "eph": "Ephesians", "ephesians": "Ephesians",
+            "phil": "Philippians", "php": "Philippians", "philippians": "Philippians",
+            "col": "Colossians", "colossians": "Colossians",
+            "1thess": "1 Thessalonians", "1 thess": "1 Thessalonians", "1 th": "1 Thessalonians", "1 thessalonians": "1 Thessalonians",
+            "2thess": "2 Thessalonians", "2 thess": "2 Thessalonians", "2 th": "2 Thessalonians", "2 thessalonians": "2 Thessalonians",
+            "1tim": "1 Timothy", "1 tim": "1 Timothy", "1 ti": "1 Timothy", "1 timothy": "1 Timothy",
+            "2tim": "2 Timothy", "2 tim": "2 Timothy", "2 ti": "2 Timothy", "2 timothy": "2 Timothy",
+            "titus": "Titus", "tit": "Titus",
+            "phlm": "Philemon", "phm": "Philemon", "phlib": "Philemon",
+            "heb": "Hebrews", "hebrews": "Hebrews",
+            "james": "James", "jas": "James",
+            "1pet": "1 Peter", "1 pet": "1 Peter", "1 pe": "1 Peter", "1 peter": "1 Peter",
+            "2pet": "2 Peter", "2 pet": "2 Peter", "2 pe": "2 Peter", "2 peter": "2 Peter",
+            "1john": "1 John", "1 john": "1 John", "1 jn": "1 John",
+            "2john": "2 John", "2 john": "2 John", "2 jn": "2 John",
+            "3john": "3 John", "3 john": "3 John", "3 jn": "3 John",
+            "jude": "Jude",
+            "rev": "Revelation", "revelation": "Revelation"
+        };
 
-        return {
-            searchQuery: '',
-            egwFilter: '',
-            loading: true,
+        const { createApp, ref, computed, onMounted } = Vue;
 
-            async loadData() {
-                try {
-                    const response = await fetch('egw_scrip_processed.json');
-                    const rawData = await response.json();
-                    
-                    records = rawData.map(item => {
-                        let expandedParts = [];
+        createApp({
+            setup() {
+                const searchData = ref({});
+                const searchQuery = ref('');
 
-                        let bibleStr = item.bible || '';
-                        let citationStr = item.citation || '';
+                onMounted(async () => {
+                    const res = await fetch('egwsearch_structured.json');
+                    searchData.value = await res.json();
+                });
 
-                        // Fix: source lines look like "3:1 - 10 4BC 1164; 6BC 1101; ..."
-                        // i.e. "<verse range> <citation list>". When the trailing
-                        // number of a verse range (the "10") gets separated from its
-                        // dash upstream, it's left dangling at the very start of the
-                        // citation string instead of staying part of the range, which
-                        // produced bible="John 3:1 -" and citation="10 4BC 1164; ...".
-                        // Detect that specific pattern -- bible ends in a bare "-" AND
-                        // citation starts with a standalone number+space (a real
-                        // abbreviation like "4BC" or "9T" has a letter immediately
-                        // after the digit, no space, so this won't false-match those)
-                        // -- and reattach the number to the verse range.
-                        const leadingNumMatch = citationStr.match(/^(\d+)\s+(.*)$/);
-                        if (leadingNumMatch && /-\s*$/.test(bibleStr.trim())) {
-                            bibleStr = bibleStr.trim() + ' ' + leadingNumMatch[1];
-                            citationStr = leadingNumMatch[2];
-                        }
+                function cleanCitation(cit) {
+                    return cit.replace(/,\s*par\.\s*\d+/gi, '').trim();
+                }
 
-                        if (citationStr) {
-                            const rawParts = citationStr.split(';').map(c => c.trim()).filter(Boolean);
-                            rawParts.forEach(part => {
-                                const firstDigitMatch = part.match(/\d/);
-                                if (!firstDigitMatch) {
-                                    expandedParts.push(part);
-                                    return;
-                                }
-                                
-                                const digitIdx = firstDigitMatch.index;
-                                const prefix = part.substring(0, digitIdx).trim();
-                                const rest = part.substring(digitIdx);
-                                
-                                const tokens = rest.split(',').map(t => t.trim()).filter(Boolean);
-                                tokens.forEach((token, idx) => {
-                                    if (idx === 0 || /^\d/.test(token)) {
-                                        expandedParts.push(`${prefix} ${token}`);
-                                    } else {
-                                        expandedParts.push(`${prefix}, ${token}`);
+                const results = computed(() => {
+                    const q = searchQuery.value.trim().toLowerCase().replace(/\s+/g, ' ');
+                    if (!q) return [];
+
+                    // Sort aliases by length descending so multi-word/numbered book prefixes match first
+                    const sortedAliases = Object.keys(bookAliases).sort((a, b) => b.length - a.length);
+
+                    for (const alias of sortedAliases) {
+                        if (q === alias || q.startsWith(alias + ' ')) {
+                            const resolvedBook = bookAliases[alias];
+                            const remainder = q.slice(alias.length).trim();
+                            const bookData = searchData.value[resolvedBook];
+                            if (!bookData) return [];
+
+                            // Case A: Whole book request (e.g., "jude")
+                            if (!remainder) {
+                                let output = [];
+                                for (const [chapterKey, chapterData] of Object.entries(bookData)) {
+                                    for (const [verse, citations] of Object.entries(chapterData)) {
+                                        output.push({ chapterName: chapterKey, verse: verse, citations: citations });
                                     }
-                                });
-                            });
+                                }
+                                return output;
+                            }
+
+                            // Case B: Verse request (e.g., "3:3")
+                            const verseMatch = remainder.match(/^(\d+)\s*:\s*(\d+)$/);
+                            if (verseMatch) {
+                                const chapterNum = verseMatch[1];
+                                const verseNum = verseMatch[2];
+                                const targetChapterKey = `${resolvedBook} ${chapterNum}`;
+                                const chapterData = bookData[targetChapterKey];
+                                if (!chapterData || !chapterData[verseNum]) return [];
+
+                                return [{
+                                    chapterName: targetChapterKey,
+                                    verse: verseNum,
+                                    citations: chapterData[verseNum]
+                                }];
+                            }
+
+                            // Case C: Chapter request (e.g., "3")
+                            const chapterMatch = remainder.match(/^(\d+)$/);
+                            if (chapterMatch) {
+                                const chapterNum = chapterMatch[1];
+                                const targetChapterKey = `${resolvedBook} ${chapterNum}`;
+                                const chapterData = bookData[targetChapterKey];
+                                if (!chapterData) return [];
+
+                                let output = [];
+                                for (const [verse, citations] of Object.entries(chapterData)) {
+                                    output.push({ chapterName: targetChapterKey, verse: verse, citations: citations });
+                                }
+                                return output;
+                            }
                         }
-                        
-                        const searchTxt = item.search_text || '';
-
-                        return {
-                            ...item,
-                            bible: bibleStr,
-                            expandedCitations: expandedParts,
-                            // Pre-compute normalized versions (no spaces/punctuation) for foolproof matching
-                            normSearchStr: searchTxt.toLowerCase().replace(/[^a-z0-9]/g, ''),
-                            normBible: bibleStr.toLowerCase().replace(/[^a-z0-9]/g, ''),
-                            normExpandedCitations: expandedParts.map(cit => cit.toLowerCase().replace(/[^a-z0-9]/g, ''))
-                        };
-                    });
-                    
-                } catch (error) {
-                    console.error('Failed to load JSON data:', error);
-                } finally {
-                    this.loading = false;
-                }
-            },
-
-            // Cap how many citation badges we ever render for a single item.
-            // Popular numbered-book verses (1 Cor, 2 Kings, 1 Peter, etc.) can carry
-            // hundreds of citations; rendering all of them for every one of the 50
-            // visible rows is what was hanging the page on mobile.
-            MAX_BADGES: 40,
-
-            // Build the (already filtered/highlighted) citation list for one item,
-            // done ONCE per item per computation of filteredResults, instead of as
-            // a live method Alpine re-invokes on every reactive tick for every item.
-            buildDisplayCitations(item, eFilter) {
-                let pool = item.expandedCitations;
-                if (eFilter) {
-                    pool = pool.filter(p => p.toUpperCase().includes(eFilter));
-                }
-                const shown = pool.slice(0, this.MAX_BADGES);
-                return {
-                    displayCitations: shown.map(text => ({
-                        text,
-                        link: this.toLinkCitation(text),
-                        highlighted: eFilter ? text.toUpperCase().includes(eFilter) : false
-                    })),
-                    hiddenCitationCount: pool.length - shown.length
-                };
-            },
-
-            // The site's search only works with "<abbrev> <page>", so the
-            // display text needs some trimming down for the outbound link
-            // (the badge itself keeps showing the full original text):
-            //  - page ranges like "DA 167-77" or "6T 154-5" -> "DA 167" / "6T 154"
-            //  - a colon suffix like "AG 341:k" is a letter marker, not part of
-            //    the page number, so it's dropped -> "AG 341"
-            //  - a colon suffix that IS a number, like "TDG 48:4", is a real
-            //    sub-page reference and is kept as-is
-            toLinkCitation(text) {
-                let link = text.includes('-') ? text.split('-')[0].trim() : text;
-                if (link.includes(':')) {
-                    const [pre, suf] = link.split(':');
-                    if (!/^\d+$/.test(suf.trim())) {
-                        link = pre.trim();
                     }
-                }
-                return link;
-            },
 
-            get filteredResults() {
-                const sQuery = this.searchQuery.trim().toLowerCase();
-                const eFilter = this.egwFilter.trim().toUpperCase();
+                    return [];
+                });
 
-                let results = records;
-
-                if (!sQuery && !eFilter) {
-                    results = results.slice(0, 50);
-                    return results.map(item => ({
-                        ...item,
-                        ...this.buildDisplayCitations(item, '')
-                    }));
-                }
-
-                if (sQuery) {
-                    const cleanQuery = sQuery.replace(/[^a-z0-9]/g, '');
-                    results = results.filter(item => {
-                        const matchesMain = item.normSearchStr.startsWith(cleanQuery) || item.normBible.startsWith(cleanQuery);
-                        if (matchesMain) return true;
-                        return item.normExpandedCitations.some(cit => cit.startsWith(cleanQuery));
-                    });
-                }
-
-                if (eFilter) {
-                    results = results.filter(item => {
-                        return item.expandedCitations.some(p => p.toUpperCase().includes(eFilter));
-                    });
-                }
-
-                // Only build display data (citation slicing/highlighting) for the
-                // 50 rows we're actually about to render, not the whole match set.
-                return results.slice(0, 50).map(item => ({
-                    ...item,
-                    ...this.buildDisplayCitations(item, eFilter)
-                }));
+                return { searchQuery, results, cleanCitation };
             }
-        }
-    }
-</script>
+        }).mount('#app');
+    </script>
 </body>
 </html>
