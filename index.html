@@ -2,57 +2,89 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>EGW Scripture Index Search</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 800px; 
-            margin: 40px auto; 
-            padding: 0 20px; 
-            background-color: #121212; 
-            color: #e0e0e0; 
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #121212;
+            color: #e0e0e0;
         }
-        h1 { color: #ffffff; }
-        input { 
-            width: 100%; 
-            padding: 12px; 
-            font-size: 1rem; 
-            box-sizing: border-box; 
-            background-color: #1e1e1e; 
-            border: 1px solid #333; 
-            color: #ffffff; 
+        h1 {
+            color: #ffffff;
+            font-size: 1.5rem;
+        }
+        input {
+            width: 100%;
+            padding: 14px 12px;
+            font-size: 16px; /* 16px+ prevents iOS Safari auto-zoom on focus */
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            color: #ffffff;
             border-radius: 4px;
         }
         input::placeholder { color: #888; }
-        .citation-link { 
-            display: inline-block; 
-            margin-right: 10px; 
-            margin-bottom: 5px; 
-            color: #64b5f6; 
-            text-decoration: none; 
+        .citation-link {
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 8px;
+            padding: 4px 2px;
+            color: #64b5f6;
+            text-decoration: none;
+            font-size: 1rem;
         }
-        .citation-link:hover { text-decoration: underline; }
-        .chapter-block { 
-            margin-top: 15px; 
-            border-bottom: 1px solid #333; 
-            padding-bottom: 10px; 
+        .citation-link:hover,
+        .citation-link:active { text-decoration: underline; }
+        .chapter-block {
+            margin-top: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
         }
-        h3 { color: #90caf9; }
+        h3 {
+            color: #90caf9;
+            font-size: 1.1rem;
+            word-wrap: break-word;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                margin: 16px auto;
+                padding: 0 12px;
+            }
+            h1 {
+                font-size: 1.25rem;
+                margin-bottom: 16px;
+            }
+            input {
+                padding: 12px 10px;
+            }
+            .citation-link {
+                display: block;
+                margin-right: 0;
+                margin-bottom: 4px;
+                padding: 6px 2px;
+                border-bottom: 1px solid #222;
+            }
+        }
     </style>
 </head>
 <body>
     <div id="app">
         <h1>EGW Scripture Index Search</h1>
         <input type="text" v-model="searchQuery" placeholder="Try '2 chron 3', '2 kings 3', '1 cor 13:3', 'jude', etc...">
-        
+
         <div v-if="results.length">
             <div v-for="res in results" class="chapter-block">
                 <h3>{{ res.chapterName }} (Verse {{ res.verse }})</h3>
                 <div>
-                    <a v-for="cit in res.citations" 
-                       :href="`https://m.egwwritings.org/en/search?query=${encodeURIComponent(cleanCitation(cit)).replace(/%20/g, '+')}`" 
-                       target="_blank" 
+                    <a v-for="cit in res.citations"
+                       :href="`https://m.egwwritings.org/en/search?query=${encodeURIComponent(cleanCitation(cit)).replace(/%20/g, '+')}`"
+                       target="_blank"
                        class="citation-link">
                         {{ cit }};
                     </a>
@@ -134,6 +166,12 @@
 
         const { createApp, ref, computed, onMounted } = Vue;
 
+        // Strip all whitespace so key lookups don't care whether the source
+        // data used "1 Corinthians 1" or "1Corinthians 1" etc.
+        function normalizeKey(s) {
+            return s.replace(/\s+/g, '').toLowerCase();
+        }
+
         createApp({
             setup() {
                 const searchData = ref({});
@@ -146,6 +184,17 @@
 
                 function cleanCitation(cit) {
                     return cit.replace(/,\s*par\.\s*\d+/gi, '').trim();
+                }
+
+                // Find the actual key inside bookData whose normalized form
+                // matches resolvedBook + chapterNum, regardless of the exact
+                // spacing/casing used in the source JSON for that entry.
+                function findChapterKey(bookData, resolvedBook, chapterNum) {
+                    const target = normalizeKey(`${resolvedBook}${chapterNum}`);
+                    for (const key of Object.keys(bookData)) {
+                        if (normalizeKey(key) === target) return key;
+                    }
+                    return null;
                 }
 
                 const results = computed(() => {
@@ -178,8 +227,8 @@
                             if (verseMatch) {
                                 const chapterNum = verseMatch[1];
                                 const verseNum = verseMatch[2];
-                                const targetChapterKey = `${resolvedBook} ${chapterNum}`;
-                                const chapterData = bookData[targetChapterKey];
+                                const targetChapterKey = findChapterKey(bookData, resolvedBook, chapterNum);
+                                const chapterData = targetChapterKey ? bookData[targetChapterKey] : null;
                                 if (!chapterData || !chapterData[verseNum]) return [];
 
                                 return [{
@@ -193,8 +242,8 @@
                             const chapterMatch = remainder.match(/^(\d+)$/);
                             if (chapterMatch) {
                                 const chapterNum = chapterMatch[1];
-                                const targetChapterKey = `${resolvedBook} ${chapterNum}`;
-                                const chapterData = bookData[targetChapterKey];
+                                const targetChapterKey = findChapterKey(bookData, resolvedBook, chapterNum);
+                                const chapterData = targetChapterKey ? bookData[targetChapterKey] : null;
                                 if (!chapterData) return [];
 
                                 let output = [];
