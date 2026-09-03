@@ -6,15 +6,6 @@
     <title>EGW Scripture Search</title>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
-        /* Static stylesheet replacing the Tailwind Play CDN.
-           The Play CDN (cdn.tailwindcss.com) does runtime JIT compilation:
-           it watches the DOM with a MutationObserver and rescans + rebuilds
-           the entire stylesheet on every DOM change. Since this page re-renders
-           part of the results list on every keystroke, that was causing the
-           CDN to repeatedly recompile CSS in the background -- the real source
-           of the memory/CPU spikes and mobile hangs. This static CSS covers
-           only the utility classes this page actually uses, so no runtime
-           compiler is needed at all. */
         *, *::before, *::after { box-sizing: border-box; }
         body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
 
@@ -163,16 +154,6 @@
 
 <script>
     function scriptureSearch() {
-        // IMPORTANT: this holds the full ~14k-record dataset as a PLAIN array,
-        // deliberately kept OUTSIDE the object returned below. Alpine makes
-        // everything in the returned x-data object deeply reactive (Proxy-wrapped),
-        // which is fine for small UI state but very expensive for a large dataset:
-        // every property read during a filter/scan goes through reactivity
-        // tracking overhead. Since this array never needs to trigger a UI update
-        // by itself (only searchQuery/egwFilter do), keeping it as a plain
-        // variable means scanning it on every keystroke is normal, cheap JS
-        // array work instead of ~14,000 Proxy-trapped reads per keystroke —
-        // this was the real source of the memory spikes and hangs.
         let records = [];
 
         return {
@@ -182,26 +163,36 @@
 
             async loadData() {
                 try {
+                    // Accepts either a flat array structure or a nested book/chapter/verse object structure
                     const response = await fetch('egw_scrip_processed.json');
                     const rawData = await response.json();
                     
-                    records = rawData.map(item => {
+                    let flatList = [];
+
+                    if (Array.isArray(rawData)) {
+                        flatList = rawData;
+                    } else {
+                        // Flattens the hierarchical structure (Book -> Chapter -> Verse) into the app's expected record format
+                        for [const [bookName, chapters] of Object.entries(rawData)) {
+                            for [const [chapNum, verses] of Object.entries(chapters)) {
+                                for [const [verseNum, citationStr] of Object.entries(verses)) {
+                                    const bibleFormatted = `${bookName.charAt(0).toUpperCase() + bookName.slice(1)} ${chapNum}:${verseNum}`;
+                                    flatList.push({
+                                        bible: bibleFormatted,
+                                        citation: citationStr,
+                                        search_text: bibleFormatted
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    records = flatList.map(item => {
                         let expandedParts = [];
 
                         let bibleStr = item.bible || '';
                         let citationStr = item.citation || '';
 
-                        // Fix: source lines look like "3:1 - 10 4BC 1164; 6BC 1101; ..."
-                        // i.e. "<verse range> <citation list>". When the trailing
-                        // number of a verse range (the "10") gets separated from its
-                        // dash upstream, it's left dangling at the very start of the
-                        // citation string instead of staying part of the range, which
-                        // produced bible="John 3:1 -" and citation="10 4BC 1164; ...".
-                        // Detect that specific pattern -- bible ends in a bare "-" AND
-                        // citation starts with a standalone number+space (a real
-                        // abbreviation like "4BC" or "9T" has a letter immediately
-                        // after the digit, no space, so this won't false-match those)
-                        // -- and reattach the number to the verse range.
                         const leadingNumMatch = citationStr.match(/^(\d+)\s+(.*)$/);
                         if (leadingNumMatch && /-\s*$/.test(bibleStr.trim())) {
                             bibleStr = bibleStr.trim() + ' ' + leadingNumMatch[1];
@@ -232,13 +223,12 @@
                             });
                         }
                         
-                        const searchTxt = item.search_text || '';
+                        const searchTxt = item.search_text || bibleStr || '';
 
                         return {
                             ...item,
                             bible: bibleStr,
                             expandedCitations: expandedParts,
-                            // Pre-compute normalized versions (no spaces/punctuation) for foolproof matching
                             normSearchStr: searchTxt.toLowerCase().replace(/[^a-z0-9]/g, ''),
                             normBible: bibleStr.toLowerCase().replace(/[^a-z0-9]/g, ''),
                             normExpandedCitations: expandedParts.map(cit => cit.toLowerCase().replace(/[^a-z0-9]/g, ''))
@@ -252,15 +242,8 @@
                 }
             },
 
-            // Cap how many citation badges we ever render for a single item.
-            // Popular numbered-book verses (1 Cor, 2 Kings, 1 Peter, etc.) can carry
-            // hundreds of citations; rendering all of them for every one of the 50
-            // visible rows is what was hanging the page on mobile.
             MAX_BADGES: 40,
 
-            // Build the (already filtered/highlighted) citation list for one item,
-            // done ONCE per item per computation of filteredResults, instead of as
-            // a live method Alpine re-invokes on every reactive tick for every item.
             buildDisplayCitations(item, eFilter) {
                 let pool = item.expandedCitations;
                 if (eFilter) {
@@ -277,14 +260,6 @@
                 };
             },
 
-            // The site's search only works with "<abbrev> <page>", so the
-            // display text needs some trimming down for the outbound link
-            // (the badge itself keeps showing the full original text):
-            //  - page ranges like "DA 167-77" or "6T 154-5" -> "DA 167" / "6T 154"
-            //  - a colon suffix like "AG 341:k" is a letter marker, not part of
-            //    the page number, so it's dropped -> "AG 341"
-            //  - a colon suffix that IS a number, like "TDG 48:4", is a real
-            //    sub-page reference and is kept as-is
             toLinkCitation(text) {
                 let link = text.includes('-') ? text.split('-')[0].trim() : text;
                 if (link.includes(':')) {
@@ -305,7 +280,7 @@
                 if (!sQuery && !eFilter) {
                     results = results.slice(0, 50);
                     return results.map(item => ({
-                        ...item,
+                        item,
                         ...this.buildDisplayCitations(item, '')
                     }));
                 }
@@ -325,8 +300,6 @@
                     });
                 }
 
-                // Only build display data (citation slicing/highlighting) for the
-                // 50 rows we're actually about to render, not the whole match set.
                 return results.slice(0, 50).map(item => ({
                     ...item,
                     ...this.buildDisplayCitations(item, eFilter)
