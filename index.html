@@ -12,29 +12,29 @@
             max-width: 800px;
             margin: 40px auto;
             padding: 0 20px;
-            background-color: #121212;
-            color: #e0e0e0;
+            background-color: #0a0a0a;
+            color: #d9cbb0;
         }
         h1 {
-            color: #ffffff;
+            color: #f0e4cc;
             font-size: 1.5rem;
         }
         input {
             width: 100%;
             padding: 14px 12px;
             font-size: 16px; /* 16px+ prevents iOS Safari auto-zoom on focus */
-            background-color: #1e1e1e;
-            border: 1px solid #333;
-            color: #ffffff;
+            background-color: #161412;
+            border: 1px solid #3a342a;
+            color: #f0e4cc;
             border-radius: 4px;
         }
-        input::placeholder { color: #888; }
+        input::placeholder { color: #8a7d64; }
         .citation-link {
             display: inline-block;
             margin-right: 10px;
             margin-bottom: 8px;
             padding: 4px 2px;
-            color: #64b5f6;
+            color: #c9a876;
             text-decoration: none;
             font-size: 1rem;
         }
@@ -42,11 +42,11 @@
         .citation-link:active { text-decoration: underline; }
         .chapter-block {
             margin-top: 15px;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid #2a2620;
             padding-bottom: 10px;
         }
         h3 {
-            color: #90caf9;
+            color: #e8d9b8;
             font-size: 1.1rem;
             word-wrap: break-word;
         }
@@ -68,7 +68,7 @@
                 margin-right: 0;
                 margin-bottom: 4px;
                 padding: 6px 2px;
-                border-bottom: 1px solid #222;
+                border-bottom: 1px solid #201d18;
             }
         }
     </style>
@@ -91,7 +91,7 @@
                 </div>
             </div>
         </div>
-        <p v-else-if="searchQuery" style="color: #aaa;">No matching results found.</p>
+        <p v-else-if="searchQuery" style="color: #8a7d64;">No matching results found.</p>
     </div>
 
     <script>
